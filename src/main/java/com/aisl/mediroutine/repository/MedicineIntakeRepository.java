@@ -6,11 +6,14 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface MedicineIntakeRepository extends JpaRepository<MedicineIntake, Long> {
 
     List<MedicineIntake> findByUserIdAndIntakeDate(Long userId, LocalDate intakeDate);
+
     @Query("""
         SELECT i
         FROM MedicineIntake i
@@ -23,4 +26,9 @@ public interface MedicineIntakeRepository extends JpaRepository<MedicineIntake, 
             @Param("date") LocalDate date
     );
 
+    Optional<MedicineIntake> findByMedicineIdAndIntakeDateAndScheduledTime(
+            Long medicineId,
+            LocalDate intakeDate,
+            LocalTime scheduledTime
+    );
 }

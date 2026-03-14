@@ -27,6 +27,11 @@ public class MedicineController {
     @GetMapping
     public List<MedicineResponse> getMedicines(
             @AuthenticationPrincipal UserDetails userDetails) {
+
+        if (userDetails == null) {
+            throw new CustomException(HttpStatus.UNAUTHORIZED, "인증이 필요합니다.");
+        }
+
         return medicineService.getMedicines(userDetails.getUsername());
     }
 
@@ -37,6 +42,10 @@ public class MedicineController {
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody MedicineCreateRequest request
     ) {
+
+        if (userDetails == null) {
+            throw new CustomException(HttpStatus.UNAUTHORIZED, "인증이 필요합니다.");
+        }
 
         return medicineService.createMedicine(
                 userDetails.getUsername(),

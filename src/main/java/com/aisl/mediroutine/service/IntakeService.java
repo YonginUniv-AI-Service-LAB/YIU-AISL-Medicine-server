@@ -78,7 +78,7 @@ public class IntakeService {
                 .build();
     }
 
-    // 복용 상태 변결
+    // 복용 상태 변경
     @Transactional
     public IntakeStatusUpdateResponse updateIntakeStatus(
             String email,

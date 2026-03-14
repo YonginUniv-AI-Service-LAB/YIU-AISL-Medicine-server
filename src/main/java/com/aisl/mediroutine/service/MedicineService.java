@@ -44,11 +44,51 @@ public class MedicineService {
                         new CustomException(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다.")
                 );
 
-        List<Medicine> medicines = medicineRepository.findByUserId(user.getId());
+        Long userId = user.getId();
 
-        return medicines.stream()
-                .map(MedicineResponse::from)
-                .collect(Collectors.toList());
+        LocalDate today = LocalDate.now();
+
+        // 오늘 스케줄 조회
+        List<MedicineSchedule> schedules = getSchedulesForDate(userId, today);
+
+        // 오늘 복용 기록 조회
+        List<MedicineIntake> intakes =
+                medicineIntakeRepository.findByUserIdAndIntakeDate(userId, today);
+
+        Map<String, MedicineIntake> intakeMap =
+                intakes.stream()
+                        .collect(Collectors.toMap(
+                                i -> i.getMedicine().getId() + "_" + i.getScheduledTime(),
+                                i -> i
+                        ));
+
+        return schedules.stream()
+                .map(schedule -> {
+
+                    Medicine medicine = schedule.getMedicine();
+
+                    String key = medicine.getId() + "_" + schedule.getIntakeTime();
+                    MedicineIntake intake = intakeMap.get(key);
+
+                    String status = "BEFORE";
+
+                    if (intake != null) {
+                        switch (intake.getStatus()) {
+                            case TAKEN -> status = "TAKEN";
+                            case MISSED -> status = "NOT_TAKEN";
+                            default -> status = "BEFORE";
+                        }
+                    }
+
+                    return MedicineResponse.from(
+                            medicine,
+                            schedule.getIntakeTime(),
+                            status
+                    );
+
+                })
+                .sorted(Comparator.comparing(MedicineResponse::getIntakeTime))
+                .toList();
     }
 
     // 약 생성
@@ -259,20 +299,17 @@ public class MedicineService {
 
         Long userId = user.getId();
 
-        int dayOfWeek = date.getDayOfWeek().getValue();
-
-        // schedule 조회
-        List<MedicineSchedule> schedules =
-                medicineScheduleRepository.findSchedulesForDate(userId, date, dayOfWeek);
+        // schedule 조회 (공통 메서드 사용)
+        List<MedicineSchedule> schedules = getSchedulesForDate(userId, date);
 
         // intake 조회
         List<MedicineIntake> intakes =
                 medicineIntakeRepository.findByUserIdAndIntakeDate(userId, date);
 
-        Map<Long, MedicineIntake> intakeMap =
+        Map<String, MedicineIntake> intakeMap =
                 intakes.stream()
                         .collect(Collectors.toMap(
-                                i -> i.getMedicine().getId(),
+                                i -> i.getMedicine().getId() + "_" + i.getScheduledTime(),
                                 i -> i
                         ));
 
@@ -281,7 +318,8 @@ public class MedicineService {
 
                     Medicine medicine = schedule.getMedicine();
 
-                    MedicineIntake intake = intakeMap.get(medicine.getId());
+                    String key = medicine.getId() + "_" + schedule.getIntakeTime();
+                    MedicineIntake intake = intakeMap.get(key);
 
                     String status = "BEFORE";
                     LocalDateTime takenAt = null;
@@ -316,5 +354,16 @@ public class MedicineService {
                 })
                 .sorted(Comparator.comparing(MedicineDailyResponse::getScheduledTime))
                 .toList();
+    }
+
+    private List<MedicineSchedule> getSchedulesForDate(Long userId, LocalDate date) {
+
+        int dayOfWeek = date.getDayOfWeek().getValue();
+
+        return medicineScheduleRepository.findSchedulesForDate(
+                userId,
+                date,
+                dayOfWeek
+        );
     }
 }
