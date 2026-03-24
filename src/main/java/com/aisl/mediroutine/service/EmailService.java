@@ -39,24 +39,18 @@ public class EmailService {
      */
     @Transactional
     public void sendVerificationCode(String email, EmailVerification.Purpose purpose) {
+
+        emailVerificationRepository.deleteByEmailAndPurpose(email, purpose);
+
         String code = RandomStringUtils.randomNumeric(6);
 
-        Optional<EmailVerification> existing =
-                emailVerificationRepository.findByEmailAndPurpose(email, purpose);
-
-        if (existing.isPresent()) {
-            // 이미 레코드가 있으면 UPDATE (code + created_at 갱신)
-            existing.get().refresh(code);
-        } else {
-            // 없으면 INSERT
-            emailVerificationRepository.save(
-                    EmailVerification.builder()
-                            .email(email)
-                            .code(code)
-                            .purpose(purpose)
-                            .build()
-            );
-        }
+        emailVerificationRepository.save(
+                EmailVerification.builder()
+                        .email(email)
+                        .code(code)
+                        .purpose(purpose)
+                        .build()
+        );
 
         sendEmail(email, code, purpose);
     }
