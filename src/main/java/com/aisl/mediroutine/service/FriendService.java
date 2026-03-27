@@ -48,13 +48,13 @@ public class FriendService {
     }
 
     @Transactional
-    public void requestFriend(String email, FriendCreateRequest request) {
+    public void requestFriend(String myEmail, FriendCreateRequest request) {
 
-        User me = userRepository.findByEmail(email)
+        User me = userRepository.findByEmail(myEmail)
                 .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."));
 
-        User target = userRepository.findById(request.getUserId())
-                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."));
+        User target = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "대상 사용자를 찾을 수 없습니다."));
 
         if (me.getId().equals(target.getId())) {
             throw new CustomException(HttpStatus.BAD_REQUEST, "자신에게 친구 신청할 수 없습니다.");
@@ -67,7 +67,6 @@ public class FriendService {
             if (existing.getStatus() == Friend.Status.PENDING) {
                 throw new CustomException(HttpStatus.BAD_REQUEST, "이미 친구 신청 상태입니다.");
             }
-            // REJECTED 정책 명세 없음 → 일단 차단(원하면 재신청 허용으로 바꿔줄게)
             throw new CustomException(HttpStatus.BAD_REQUEST, "이미 친구 신청 상태입니다.");
         });
 
@@ -80,7 +79,6 @@ public class FriendService {
         try {
             friendRepository.save(friend);
         } catch (Exception e) {
-            // 동시성으로 DB UNIQUE 위반 가능
             throw new CustomException(HttpStatus.BAD_REQUEST, "이미 친구 신청 상태입니다.");
         }
     }
