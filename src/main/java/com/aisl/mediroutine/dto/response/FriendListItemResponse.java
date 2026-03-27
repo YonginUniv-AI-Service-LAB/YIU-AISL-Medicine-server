@@ -8,5 +8,5 @@ import lombok.Getter;
 public class FriendListItemResponse {
     private Long friendId;
     private String nickname;
-    private String profileImageUrl;
+    private String profileImageUrl; // 선택사항
 }
