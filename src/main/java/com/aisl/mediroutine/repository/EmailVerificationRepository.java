@@ -11,4 +11,8 @@ public interface EmailVerificationRepository extends JpaRepository<EmailVerifica
             String email,
             EmailVerification.Purpose purpose
     );
+
+    void deleteByEmailAndPurpose(String email, EmailVerification.Purpose purpose);
+
+    void deleteByEmail(String email);
 }

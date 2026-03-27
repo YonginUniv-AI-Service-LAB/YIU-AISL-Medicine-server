@@ -6,7 +6,12 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "email_verification")
+@Table(
+        name = "email_verification",
+        uniqueConstraints = {
+                @UniqueConstraint(columnNames = {"email", "purpose"})
+        }
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
@@ -41,11 +46,5 @@ public class EmailVerification {
     public enum Purpose {
         SIGNUP,         // 회원가입용
         RESET_PASSWORD  // 비밀번호 재설정용
-    }
-
-    // 재발송 시 코드와 시각을 갱신하는 비즈니스 메서드
-    public void refresh(String newCode) {
-        this.code = newCode;
-        this.createdAt = LocalDateTime.now();
     }
 }

@@ -8,6 +8,8 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "medicine")
@@ -28,13 +30,13 @@ public class Medicine {
     private User user;
 
     @Column(nullable = false, length = 255)
-    private String name; // 약 이름
+    private String name;
 
     @Column(length = 100)
-    private String category; // 비타민, 영양제 등
+    private String category;
 
     @Column(name = "daily_dose_count", nullable = false)
-    private Integer dailyDoseCount; // 하루 몇 번
+    private Integer dailyDoseCount;
 
     @Column(name = "start_date", nullable = false)
     private LocalDate startDate;
@@ -43,13 +45,13 @@ public class Medicine {
     private LocalDate endDate;
 
     @Column(name = "total_quantity")
-    private Integer totalQuantity; // 전체 약 개수
+    private Integer totalQuantity;
 
     @Column(name = "remaining_quantity")
-    private Integer remainingQuantity; // 남은 약 개수
+    private Integer remainingQuantity;
 
     @Lob
-    private String caution; // 주의사항
+    private String caution;
 
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -59,7 +61,28 @@ public class Medicine {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    // 수량 갱신 메서드 (필요하면 사용)
+    // schedule 관계
+    @OneToMany(mappedBy = "medicine",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true)
+    private List<MedicineSchedule> schedules = new ArrayList<>();
+
+
+    // intake 관계
+    @OneToMany(mappedBy = "medicine",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true)
+    private List<MedicineIntake> intakes = new ArrayList<>();
+
+
+    public void updateName(String name) {
+        this.name = name;
+    }
+
+    public void updateDailyDoseCount(Integer dailyDoseCount) {
+        this.dailyDoseCount = dailyDoseCount;
+    }
+
     public void updateRemainingQuantity(Integer remainingQuantity) {
         this.remainingQuantity = remainingQuantity;
     }

@@ -65,4 +65,10 @@ public class MedicineIntake {
         this.status = Status.MISSED;
         this.takenAt = null;
     }
+
+    // BEFORE로 되돌리는 처리
+    public void resetToBefore() {
+        this.status = Status.BEFORE;
+        this.takenAt = null;
+    }
 }

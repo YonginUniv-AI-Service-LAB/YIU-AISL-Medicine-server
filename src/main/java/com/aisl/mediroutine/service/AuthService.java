@@ -15,7 +15,7 @@ import com.aisl.mediroutine.dto.response.UserResponse;
 import com.aisl.mediroutine.entity.EmailVerification;
 import com.aisl.mediroutine.entity.User;
 import com.aisl.mediroutine.global.exception.CustomException;
-import com.aisl.mediroutine.repository.UserRepository;
+import com.aisl.mediroutine.repository.EmailVerificationRepository;import com.aisl.mediroutine.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -29,6 +29,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
+    private final EmailVerificationRepository emailVerificationRepository;
 
 
     @Transactional
@@ -91,9 +92,25 @@ public class AuthService {
 
     @Transactional
     public void deleteUser(String email) {
+
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException(
                         HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."));
+
+        emailVerificationRepository.deleteByEmail(email);
+
         userRepository.delete(user);
+    }
+
+    /**
+     * GET /users/me
+     * 현재 로그인한 사용자 정보 조회
+     */
+    @Transactional(readOnly = true)
+    public UserResponse getMe(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException(
+                        HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."));
+        return UserResponse.from(user);
     }
 }
