@@ -16,5 +16,6 @@ public class IntakeItemResponse {
 
     private LocalTime scheduledTime;
     private String status;
+    private Integer dayOfWeek;
 
 }

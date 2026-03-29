@@ -15,11 +15,12 @@ public interface MedicineIntakeRepository extends JpaRepository<MedicineIntake, 
     List<MedicineIntake> findByUserIdAndIntakeDate(Long userId, LocalDate intakeDate);
 
     @Query("""
-        SELECT i
-        FROM MedicineIntake i
-        JOIN FETCH i.medicine m
-        WHERE i.user.id = :userId
-          AND i.intakeDate = :date
+    SELECT i
+    FROM MedicineIntake i
+    JOIN FETCH i.medicine m
+    LEFT JOIN FETCH m.schedules
+    WHERE i.user.id = :userId
+    AND i.intakeDate = :date
     """)
     List<MedicineIntake> findByUserAndDate(
             @Param("userId") Long userId,

@@ -39,14 +39,27 @@ public class IntakeService {
 
         List<IntakeItemResponse> items = intakes.stream()
                 .sorted(Comparator.comparing(MedicineIntake::getScheduledTime))
-                .map(i -> IntakeItemResponse.builder()
-                        .intakeId(i.getId())
-                        .medicineId(i.getMedicine().getId())
-                        .medicineName(i.getMedicine().getName())
-                        .category(i.getMedicine().getCategory())
-                        .scheduledTime(i.getScheduledTime())
-                        .status(i.getStatus().name())
-                        .build())
+                .map(i -> {
+
+                    Medicine medicine = i.getMedicine();
+
+                    //schedule에서 요일 찾기
+                    Integer dayOfWeek = medicine.getSchedules().stream()
+                            .filter(s -> s.getIntakeTime().equals(i.getScheduledTime()))
+                            .map(s -> s.getDayOfWeek())
+                            .findFirst()
+                            .orElse(null);
+
+                    return IntakeItemResponse.builder()
+                            .intakeId(i.getId())
+                            .medicineId(medicine.getId())
+                            .medicineName(medicine.getName())
+                            .category(medicine.getCategory())
+                            .scheduledTime(i.getScheduledTime())
+                            .status(i.getStatus().name())
+                            .dayOfWeek(dayOfWeek)
+                            .build();
+                })
                 .toList();
 
         int total = items.size();
