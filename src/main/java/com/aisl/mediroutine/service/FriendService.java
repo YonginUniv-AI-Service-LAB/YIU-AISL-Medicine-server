@@ -34,6 +34,7 @@ public class FriendService {
         return relations.stream().map(f -> {
             User other = f.getRequester().getId().equals(me.getId()) ? f.getReceiver() : f.getRequester();
             return new FriendListItemResponse(
+                    f.getId(),
                     other.getId(),
                     other.getName(), // nickname 컬럼 없으니 name으로 대체
                     null             // profileImageUrl 컬럼 없으니 null
