@@ -1,14 +1,5 @@
 package com.aisl.mediroutine.service;
 
-// =====================================================
-// [담당 API]
-//   POST /emails/verification-code/send   → 인증번호 발송 (UPSERT)
-//   POST /emails/verification-code/verify → 인증번호 검증
-//
-// [만료 시간] 10분
-// [만료 상태코드] 410 GONE
-// =====================================================
-
 import com.aisl.mediroutine.entity.EmailVerification;
 import com.aisl.mediroutine.global.exception.CustomException;
 import com.aisl.mediroutine.repository.EmailVerificationRepository;
@@ -33,12 +24,12 @@ public class EmailService {
     private static final int EXPIRY_MINUTES = 10;
 
     /**
-     * POST /emails/verification-code/send
-     * 인증번호 발송 — UPSERT 방식
+     * 인증번호 발송 (UPSERT)
      */
     @Transactional
     public void sendVerificationCode(String email, EmailVerification.Purpose purpose) {
 
+        // 기존 데이터 삭제 (중복 방지)
         emailVerificationRepository.deleteByEmailAndPurpose(email, purpose);
 
         String code = RandomStringUtils.randomNumeric(6);
@@ -48,6 +39,7 @@ public class EmailService {
                         .email(email)
                         .code(code)
                         .purpose(purpose)
+                        .verified(false)
                         .build()
         );
 
@@ -55,56 +47,77 @@ public class EmailService {
     }
 
     /**
-     * POST /emails/verification-code/verify
-     * 인증번호 검증 — 성공 시 레코드는 유지 (signup/reset 시 최종 재검증에 사용)
+     * 인증번호 검증 (상태 저장)
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public void verifyCode(String email, String code, EmailVerification.Purpose purpose) {
+
         EmailVerification verification = emailVerificationRepository
                 .findByEmailAndPurpose(email, purpose)
                 .orElseThrow(() -> new CustomException(
                         HttpStatus.BAD_REQUEST, "인증번호를 먼저 요청해주세요."));
 
-        checkExpiry(verification);
+        if (verification.isVerified()) {
+            return;
+        }
+
         checkCode(verification, code);
 
-        // verify API에서는 레코드를 삭제하지 않습니다.
-        // 이유: signup/password-reset에서 최종 재검증 시 다시 필요하기 때문입니다.
+        checkExpiry(verification);
+
+        verification.verify();
+        emailVerificationRepository.save(verification);
     }
 
     /**
-     * 내부용: signup, password-reset에서 최종 재검증 후 레코드 삭제
-     * 검증 성공 시 해당 레코드를 삭제해 재사용을 방지합니다.
+     * 최종 검증 + 삭제 (회원가입 / 비밀번호 변경)
      */
     @Transactional
     public void verifyAndDelete(String email, String code, EmailVerification.Purpose purpose) {
+
         EmailVerification verification = emailVerificationRepository
                 .findByEmailAndPurpose(email, purpose)
                 .orElseThrow(() -> new CustomException(
                         HttpStatus.BAD_REQUEST, "인증번호가 올바르지 않습니다."));
 
-        checkExpiry(verification);
+        if (!verification.isVerified()) {
+            throw new CustomException(
+                    HttpStatus.BAD_REQUEST,
+                    "이메일 인증을 먼저 완료해주세요."
+            );
+        }
+
         checkCode(verification, code);
+        checkExpiry(verification);
 
         emailVerificationRepository.delete(verification);
     }
 
-    // ===== private 내부 메서드 =====
+    // ================= 내부 메서드 =================
 
     private void checkExpiry(EmailVerification verification) {
-        if (verification.getCreatedAt().plusMinutes(EXPIRY_MINUTES).isBefore(LocalDateTime.now())) {
-            throw new CustomException(HttpStatus.GONE, "인증번호가 만료되었습니다.");
-            // 410 GONE: HttpStatus.GONE
+        if (verification.getCreatedAt()
+                .plusMinutes(EXPIRY_MINUTES)
+                .isBefore(LocalDateTime.now())) {
+
+            throw new CustomException(
+                    HttpStatus.GONE,
+                    "인증번호가 만료되었습니다."
+            );
         }
     }
 
     private void checkCode(EmailVerification verification, String code) {
         if (!verification.getCode().equals(code)) {
-            throw new CustomException(HttpStatus.BAD_REQUEST, "인증번호가 올바르지 않습니다.");
+            throw new CustomException(
+                    HttpStatus.BAD_REQUEST,
+                    "인증번호가 올바르지 않습니다."
+            );
         }
     }
 
     private void sendEmail(String to, String code, EmailVerification.Purpose purpose) {
+
         String subject = purpose == EmailVerification.Purpose.SIGNUP
                 ? "[Mediroutine] 회원가입 이메일 인증번호"
                 : "[Mediroutine] 비밀번호 재설정 인증번호";
@@ -121,7 +134,10 @@ public class EmailService {
             message.setText(text);
             mailSender.send(message);
         } catch (MailException e) {
-            throw new CustomException(HttpStatus.INTERNAL_SERVER_ERROR, "이메일 전송에 실패했습니다.");
+            throw new CustomException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "이메일 전송에 실패했습니다."
+            );
         }
     }
 }

@@ -28,23 +28,32 @@ public class EmailVerification {
     @Column(nullable = false, length = 10)
     private String code;
 
-    // Enum: Purpose.SIGNUP 또는 Purpose.RESET_PASSWORD 두 값만 허용
-    @Enumerated(EnumType.STRING)             // DB에 "SIGNUP", "RESET_PASSWORD" 문자열로 저장
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private Purpose purpose;
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
-    // JPA가 DB에 저장하기 직전 자동 호출 → 생성 시각 세팅
+    @Column(nullable = false)
+    private boolean verified;
+
+    // 생성 시 시간 자동 설정
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
+
+        if (!this.verified) {
+            this.verified = false;
+        }
     }
 
-    // 인증 목적을 나타내는 열거형(Enum)
+    public void verify() {
+        this.verified = true;
+    }
+
     public enum Purpose {
-        SIGNUP,         // 회원가입용
-        RESET_PASSWORD  // 비밀번호 재설정용
+        SIGNUP,
+        RESET_PASSWORD
     }
 }
