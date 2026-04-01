@@ -6,8 +6,8 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public class FriendListItemResponse {
-    private Long friendId;
     private Long relationId;
+    private Long friendId;
     private String nickname;
 
     private String profileImageUrl; // 선택사항
