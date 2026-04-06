@@ -31,6 +31,7 @@ public class EmailService {
 
         // 기존 데이터 삭제 (중복 방지)
         emailVerificationRepository.deleteByEmailAndPurpose(email, purpose);
+        emailVerificationRepository.flush(); // ← 추가: DELETE를 즉시 DB에 반영
 
         String code = RandomStringUtils.randomNumeric(6);
 
