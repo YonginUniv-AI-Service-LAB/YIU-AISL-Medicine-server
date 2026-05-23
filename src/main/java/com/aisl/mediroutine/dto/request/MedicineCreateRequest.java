@@ -20,6 +20,7 @@ public class MedicineCreateRequest {
     @Min(value = 1, message = "복용 횟수는 1 이상이어야 합니다.")
     private Integer dailyDoseCount;
 
+    @NotNull(message = "복용 기간을 입력하세요.")
     @Min(value = 1, message = "durationDays는 1 이상이어야 합니다.")
     private Integer durationDays;
 

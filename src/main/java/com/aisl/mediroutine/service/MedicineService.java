@@ -5,6 +5,7 @@ import com.aisl.mediroutine.dto.response.*;
 import com.aisl.mediroutine.dto.request.MedicineUpdateRequest;
 import com.aisl.mediroutine.global.exception.CustomException;
 import com.aisl.mediroutine.repository.FriendRepository;
+import com.aisl.mediroutine.entity.Friend;
 import com.aisl.mediroutine.entity.Medicine;
 import com.aisl.mediroutine.entity.MedicineIntake;
 import com.aisl.mediroutine.entity.MedicineSchedule;
@@ -25,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@SuppressWarnings("null")
 @Service
 @RequiredArgsConstructor
 public class MedicineService {
@@ -62,6 +64,27 @@ public class MedicineService {
                                 i -> i
                         ));
 
+        // 오늘 스케줄에 포함된 medicine의 전체 요일 스케줄 조회 (캘린더 표시용)
+        List<Long> medicineIds = schedules.stream()
+                .map(s -> s.getMedicine().getId())
+                .distinct()
+                .collect(Collectors.toList());
+
+        Map<Long, List<MedicineResponse.ScheduleInfo>> allSchedulesByMedicineId =
+                medicineIds.isEmpty() ? Map.of() :
+                medicineScheduleRepository.findAllByMedicineIdIn(medicineIds)
+                        .stream()
+                        .collect(Collectors.groupingBy(
+                                s -> s.getMedicine().getId(),
+                                Collectors.mapping(
+                                        s -> MedicineResponse.ScheduleInfo.builder()
+                                                .id(s.getId())
+                                                .dayOfWeek(s.getDayOfWeek())
+                                                .build(),
+                                        Collectors.toList()
+                                )
+                        ));
+
         return schedules.stream()
                 .map(schedule -> {
 
@@ -80,10 +103,17 @@ public class MedicineService {
                         }
                     }
 
+                    List<MedicineResponse.ScheduleInfo> medicineSchedules =
+                            allSchedulesByMedicineId.getOrDefault(medicine.getId(), List.of());
+
+                    Long intakeId = intake != null ? intake.getId() : null;
+
                     return MedicineResponse.from(
                             medicine,
                             schedule.getIntakeTime(),
-                            status
+                            status,
+                            medicineSchedules,
+                            intakeId
                     );
 
                 })
@@ -95,8 +125,9 @@ public class MedicineService {
     @Transactional
     public MedicineCreateResponse createMedicine(String email, MedicineCreateRequest request) {
 
+        // IllegalArgumentException → CustomException: GlobalExceptionHandler가 IllegalArgumentException을 500으로 처리하므로 404로 반환하기 위해 수정
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."));
 
         LocalDate startDate = LocalDate.now();
         LocalDate endDate = startDate.plusDays(request.getDurationDays());
@@ -255,7 +286,7 @@ public class MedicineService {
         if (!ownerId.equals(loginUserId)) {
 
             boolean isFriend =
-                    friendRepository.existsAcceptedBetween(loginUserId, ownerId) == 1;
+                    friendRepository.countAcceptedBetween(loginUserId, ownerId, Friend.Status.ACCEPTED) > 0;
 
             if (!isFriend) {
                 throw new CustomException(HttpStatus.FORBIDDEN, "조회 권한이 없습니다.");
@@ -275,6 +306,8 @@ public class MedicineService {
                         .toList();
 
         // DTO 반환
+        int durationDays = (int) (medicine.getEndDate().toEpochDay() - medicine.getStartDate().toEpochDay());
+
         return MedicineDetailResponse.builder()
                 .id(medicine.getId())
                 .name(medicine.getName())
@@ -282,6 +315,7 @@ public class MedicineService {
                 .dailyDoseCount(medicine.getDailyDoseCount())
                 .startDate(medicine.getStartDate())
                 .endDate(medicine.getEndDate())
+                .durationDays(durationDays)
                 .totalQuantity(medicine.getTotalQuantity())
                 .remainingQuantity(medicine.getRemainingQuantity())
                 .caution(medicine.getCaution())
@@ -337,6 +371,7 @@ public class MedicineService {
 
                     return MedicineDailyResponse.builder()
                             .scheduleId(schedule.getId())
+                            .intakeId(intake != null ? intake.getId() : null)
                             .scheduledTime(schedule.getIntakeTime())
                             .status(status)
                             .takenAt(takenAt)
@@ -354,6 +389,53 @@ public class MedicineService {
                 })
                 .sorted(Comparator.comparing(MedicineDailyResponse::getScheduledTime))
                 .toList();
+    }
+
+    // 전체 약 스케줄 조회 (캘린더용 - 요일 필터 없음)
+    @Transactional(readOnly = true)
+    public List<MedicineAllSchedulesResponse> getAllMedicineSchedules(String email) {
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new CustomException(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다.")
+                );
+
+        LocalDate today = LocalDate.now();
+
+        List<Medicine> medicines = medicineRepository.findByUserId(user.getId())
+                .stream()
+                .filter(m -> !m.getEndDate().isBefore(today))
+                .collect(Collectors.toList());
+
+        if (medicines.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> medicineIds = medicines.stream()
+                .map(Medicine::getId)
+                .collect(Collectors.toList());
+
+        Map<Long, List<MedicineAllSchedulesResponse.ScheduleEntry>> schedulesByMedicineId =
+                medicineScheduleRepository.findAllByMedicineIdIn(medicineIds)
+                        .stream()
+                        .collect(Collectors.groupingBy(
+                                s -> s.getMedicine().getId(),
+                                Collectors.mapping(
+                                        s -> MedicineAllSchedulesResponse.ScheduleEntry.builder()
+                                                .dayOfWeek(s.getDayOfWeek())
+                                                .intakeTime(s.getIntakeTime())
+                                                .build(),
+                                        Collectors.toList()
+                                )
+                        ));
+
+        return medicines.stream()
+                .map(m -> MedicineAllSchedulesResponse.builder()
+                        .id(m.getId())
+                        .name(m.getName())
+                        .schedules(schedulesByMedicineId.getOrDefault(m.getId(), List.of()))
+                        .build())
+                .collect(Collectors.toList());
     }
 
     private List<MedicineSchedule> getSchedulesForDate(Long userId, LocalDate date) {

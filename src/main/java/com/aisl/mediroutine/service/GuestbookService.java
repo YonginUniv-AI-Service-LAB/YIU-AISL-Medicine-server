@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+@SuppressWarnings("null")
 @Service
 @RequiredArgsConstructor
 public class GuestbookService {
@@ -47,7 +48,7 @@ public class GuestbookService {
         }
 
         // 4) 목록 조회 + 5) 최신순 정렬
-        return guestbookRepository.findAllByOwner_IdOrderByCreatedAtDesc(owner.getId())
+        return guestbookRepository.findAllByOwnerIdWithWriter(owner.getId())
                 .stream()
                 .map(GuestbookListItemResponse::from)
                 .toList();

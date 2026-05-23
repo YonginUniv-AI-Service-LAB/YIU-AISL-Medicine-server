@@ -17,6 +17,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.*;
 
+@SuppressWarnings("null")
 @Service
 @RequiredArgsConstructor
 public class CalendarService {

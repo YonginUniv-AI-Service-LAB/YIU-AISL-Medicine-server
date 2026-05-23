@@ -13,6 +13,7 @@ import java.util.List;
 public class MedicineDailyResponse {
 
     private Long scheduleId;
+    private Long intakeId;
     private LocalTime scheduledTime;
 
     private String status;

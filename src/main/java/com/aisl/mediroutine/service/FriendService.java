@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+@SuppressWarnings("null")
 @Service
 @RequiredArgsConstructor
 public class FriendService {
@@ -45,7 +46,7 @@ public class FriendService {
     // 캘린더 권한검사용(1번 API에서 사용)
     @Transactional(readOnly = true)
     public boolean isFriendAccepted(Long me, Long other) {
-        return friendRepository.existsAcceptedBetween(me, other) == 1L;
+        return friendRepository.countAcceptedBetween(me, other, Friend.Status.ACCEPTED) > 0;
     }
 
     @Transactional

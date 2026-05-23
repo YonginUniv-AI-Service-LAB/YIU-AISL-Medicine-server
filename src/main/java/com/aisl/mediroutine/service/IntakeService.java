@@ -7,9 +7,12 @@ import com.aisl.mediroutine.dto.response.IntakeStatusUpdateResponse;
 import com.aisl.mediroutine.entity.Medicine;
 import com.aisl.mediroutine.entity.MedicineIntake;
 import com.aisl.mediroutine.entity.User;
+import com.aisl.mediroutine.global.exception.CustomException;
 import com.aisl.mediroutine.repository.MedicineIntakeRepository;
+import com.aisl.mediroutine.repository.MedicineScheduleRepository;
 import com.aisl.mediroutine.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,11 +20,13 @@ import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
 
+@SuppressWarnings("null")
 @Service
 @RequiredArgsConstructor
 public class IntakeService {
 
     private final MedicineIntakeRepository medicineIntakeRepository;
+    private final MedicineScheduleRepository medicineScheduleRepository;
     private final UserRepository userRepository;
 
     // 특정 날짜 복용 기록 조회
@@ -29,10 +34,14 @@ public class IntakeService {
     public IntakeDailyResponse getIntakesByDate(String email, LocalDate date) {
 
         // 로그인 사용자 조회
+        // IllegalArgumentException → CustomException: GlobalExceptionHandler가 IllegalArgumentException을 500으로 처리하므로 404로 반환하기 위해 수정
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."));
 
         Long userId = user.getId();
+
+        int dayOfWeek = date.getDayOfWeek().getValue();
+        int total = medicineScheduleRepository.findSchedulesForDate(userId, date, dayOfWeek).size();
 
         List<MedicineIntake> intakes =
                 medicineIntakeRepository.findByUserAndDate(userId, date);
@@ -43,8 +52,7 @@ public class IntakeService {
 
                     Medicine medicine = i.getMedicine();
 
-                    //schedule에서 요일 찾기
-                    Integer dayOfWeek = medicine.getSchedules().stream()
+                    Integer dow = medicine.getSchedules().stream()
                             .filter(s -> s.getIntakeTime().equals(i.getScheduledTime()))
                             .map(s -> s.getDayOfWeek())
                             .findFirst()
@@ -57,12 +65,10 @@ public class IntakeService {
                             .category(medicine.getCategory())
                             .scheduledTime(i.getScheduledTime())
                             .status(i.getStatus().name())
-                            .dayOfWeek(dayOfWeek)
+                            .dayOfWeek(dow)
                             .build();
                 })
                 .toList();
-
-        int total = items.size();
 
         int taken = (int) intakes.stream()
                 .filter(i -> i.getStatus() == MedicineIntake.Status.TAKEN)
@@ -76,7 +82,7 @@ public class IntakeService {
 
         int takenRate = total == 0 ? 0 : (taken * 100) / total;
         int missedRate = total == 0 ? 0 : (missed * 100) / total;
-        int beforeRate = total == 0 ? 0 : (before * 100) / total;
+        int beforeRate = total == 0 ? 0 : 100 - takenRate - missedRate;
 
         return IntakeDailyResponse.builder()
                 .date(date)
@@ -100,22 +106,28 @@ public class IntakeService {
     ) {
 
         // 로그인 사용자 조회
+        // IllegalArgumentException → CustomException: GlobalExceptionHandler가 IllegalArgumentException을 500으로 처리하므로 404로 반환하기 위해 수정
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."));
 
         // intake 조회
         MedicineIntake intake = medicineIntakeRepository.findById(intakeId)
-                .orElseThrow(() -> new IllegalArgumentException("복용 기록을 찾을 수 없습니다."));
+                .orElseThrow(() -> new CustomException(HttpStatus.NOT_FOUND, "복용 기록을 찾을 수 없습니다."));
 
         // 본인 확인
         if (!intake.getUser().getId().equals(user.getId())) {
-            throw new IllegalArgumentException("수정 권한이 없습니다.");
+            throw new CustomException(HttpStatus.FORBIDDEN, "수정 권한이 없습니다.");
         }
 
         Medicine medicine = intake.getMedicine();
 
-        MedicineIntake.Status newStatus =
-                MedicineIntake.Status.valueOf(request.getStatus());
+        // IllegalArgumentException → CustomException: valueOf()가 잘못된 enum 값에 대해 IllegalArgumentException을 던지므로 400으로 반환하기 위해 수정
+        MedicineIntake.Status newStatus;
+        try {
+            newStatus = MedicineIntake.Status.valueOf(request.getStatus());
+        } catch (IllegalArgumentException e) {
+            throw new CustomException(HttpStatus.BAD_REQUEST, "올바른 상태 값을 입력하세요.");
+        }
 
         MedicineIntake.Status oldStatus = intake.getStatus();
 

@@ -30,8 +30,7 @@ public class Guestbook {
     @JoinColumn(name = "writer_id", nullable = false)
     private User writer;
 
-    @Lob
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
     @CreatedDate

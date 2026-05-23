@@ -105,6 +105,18 @@ public class MedicineController {
                 medicineId
         );
     }
+    // 전체 약 스케줄 조회 (캘린더용)
+    @GetMapping("/schedules")
+    public List<MedicineAllSchedulesResponse> getAllMedicineSchedules(
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        if (userDetails == null) {
+            throw new CustomException(HttpStatus.UNAUTHORIZED, "인증이 필요합니다.");
+        }
+
+        return medicineService.getAllMedicineSchedules(userDetails.getUsername());
+    }
+
     // 특정 날짜 약 목록 조회
     @GetMapping("/daily")
     public List<MedicineDailyResponse> getMedicinesByDate(

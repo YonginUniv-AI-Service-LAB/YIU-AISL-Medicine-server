@@ -20,10 +20,8 @@ public class CalendarController {
     public ResponseEntity<ApiResponse<WeeklyCalendarResponse>> getWeeklyCalendar(
             @AuthenticationPrincipal UserDetails userDetails,
             @PathVariable Long userId,
-            @RequestParam(required = false) String date
-    ) {
-        WeeklyCalendarResponse response =
-                calendarService.getWeeklyCalendar(userDetails.getUsername(), userId, date);
+            @RequestParam(required = false) String date) {
+        WeeklyCalendarResponse response = calendarService.getWeeklyCalendar(userDetails.getUsername(), userId, date);
 
         return ResponseEntity.ok(ApiResponse.success("주간 캘린더 조회 성공", response));
     }

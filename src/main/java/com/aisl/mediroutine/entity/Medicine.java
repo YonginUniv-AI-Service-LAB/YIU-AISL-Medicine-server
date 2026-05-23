@@ -62,6 +62,7 @@ public class Medicine {
     private LocalDateTime updatedAt;
 
     // schedule 관계
+    @Builder.Default
     @OneToMany(mappedBy = "medicine",
             cascade = CascadeType.ALL,
             orphanRemoval = true)
@@ -69,6 +70,7 @@ public class Medicine {
 
 
     // intake 관계
+    @Builder.Default
     @OneToMany(mappedBy = "medicine",
             cascade = CascadeType.ALL,
             orphanRemoval = true)

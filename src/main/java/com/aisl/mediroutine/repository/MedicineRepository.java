@@ -2,6 +2,7 @@ package com.aisl.mediroutine.repository;
 
 import com.aisl.mediroutine.entity.Medicine;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -22,4 +23,9 @@ public interface MedicineRepository extends JpaRepository<Medicine, Long> {
     List<Medicine> findAllActiveInWeekRange(@Param("userId") Long userId,
                                             @Param("weekStart") LocalDate weekStart,
                                             @Param("weekEnd") LocalDate weekEnd);
+
+    // 회원탈퇴 시 해당 유저의 약 전체 삭제 (User FK 제약 해제용)
+    @Modifying(clearAutomatically = true)
+    @Query("DELETE FROM Medicine m WHERE m.user.id = :userId")
+    void deleteByUserId(@Param("userId") Long userId);
 }

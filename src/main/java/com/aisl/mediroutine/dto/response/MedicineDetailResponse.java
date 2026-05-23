@@ -17,6 +17,7 @@ public class MedicineDetailResponse {
     private Integer dailyDoseCount;
     private LocalDate startDate;
     private LocalDate endDate;
+    private Integer durationDays;
     private Integer totalQuantity;
     private Integer remainingQuantity;
     private String caution;
